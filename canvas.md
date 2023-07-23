@@ -117,20 +117,6 @@ if (canvas.getContext){
 - rect(x, y, width, height) 绘制一个左上角坐标为（x,y），宽高为 width 以及 height 的矩形
   _当该方法执行的时候，moveTo() 方法自动设置坐标参数（0,0）。也就是说，当前笔触自动重置回默认坐标。_
 
-#### 裁剪路径
-
-- clip()将当前正在构建的路径转换为当前的裁剪路径
-
-```javascript
-ctx.beginPath()
-ctx.arc(0, 0, 60, 0, Math.PI * 2, true)
-ctx.clip()
-// 这个圆弧路径将会变为裁剪路径
-// 路径填充外将会被裁剪
-```
-
-- **裁剪路径也属于 canvas 状态中的一部分,可以被 save()方法保存起来**
-
 #### Path2D 对象 (用于储存路径?)
 
 - Path2D()会返回一个新初始化的 Path2D 对象（可能将某一个路径作为变量——创建一个它的副本，或者将一个包含 SVG path 数据的字符串作为变量）
@@ -369,6 +355,57 @@ canvas 提供了两种方法来渲染文本
 
 需要注意的是 _canvas 的变形方法只会影响到移动之后的路径绘制,直到出现下一个相同的变形方法之前,中间的路径绘制都会受到影响.同样的,后出现的变形方法也只会影响其之后的路径绘制_
 
+## 组合
+
+### 混合模式
+
+canvas 绘图的默认模式为按照代码顺序层层叠加,后绘制的图像会覆盖之前的图像,但仅仅这样的模式是不够的.对于合成的图像来说,可以利用 globalCompositeOperation 属性来设置混合模式,和其他属性一样,该属性只会影响在其之后绘制的图像.
+
+- globalCompositeOperation = type
+  这个属性设定了在画新图形时采用的遮盖策略，其值是一个标识 12 种遮盖方式的字符串
+
+  - **source-over**(默认值)在现有画布上下文之上绘制新图像
+  - source-in 新图形只在和旧图形重叠的地方绘制,并且会将没有重叠的部分变为透明(至少看起来是这样)
+  - source-out 新图形只在不与旧图像重叠的地方绘制,并且会将原有的图形分变为透明
+  - **source-atop** 新图形只在与旧图形重叠的地方绘制,原有的图形不会有变化
+  - **destination-over** 在现有的图形后面绘制新的图形
+  - destination-in 与 source-in 相反,只保留旧图形中与新图形重叠的部分,其他都是透明
+  - destination-out 与 source-out 相反,只保留旧图形中与新图形不重叠的部分,其他都是透明
+  - destination-atop 旧图形只保留与新图形重叠的部分,不会影响新图形
+  - lighter 重叠图形的颜色是通过颜色值相加来确定的
+  - copy 只显示新图形
+  - xor 重叠的地方为透明的
+  - multiply 将顶层像素与底层相应像素相乘(像是把重叠部分变黑)
+  - screen 像素被倒转，相乘，再倒转，结果是一幅更明亮的图片(类似于 lighter)
+  - overlay multiply 和 screen 的结合，原本暗的地方更暗，原本亮的地方更亮
+  - darken 保留两个图层中最暗的像素 (类似于 multiply)
+  - lighten 保留两个图层中最亮的像素 (类似于 lighter)
+    _以下部分没有验证_
+  - color-dodge 将底层除以顶层的反置。
+  - color-burn 将反置的底层除以顶层，然后将结果反过来。
+  - hard-light 屏幕相乘（A combination of multiply and screen）类似于叠加，但上下图层互换了。
+  - soft-light 用顶层减去底层或者相反来得到一个正值。
+  - difference 一个柔和版本的强光（hard-light）。纯黑或纯白不会导致纯黑或纯白。
+  - exclusion 和 difference 相似，但对比度较低。
+  - hue 保留了底层的亮度（luma）和色度（chroma），同时采用了顶层的色调（hue）。
+  - saturation 保留底层的亮度（luma）和色调（hue），同时采用顶层的色度（chroma）。
+  - color 保留了底层的亮度（luma），同时采用了顶层的色调 (hue) 和色度 (chroma)。
+  - luminosity 保持底层的色调（hue）和色度（chroma），同时采用顶层的亮度（luma）。
+
+  ### 裁剪路径
+
+  - clip()将当前正在构建的路径转换为当前的裁剪路径
+
+  ```javascript
+  ctx.beginPath()
+  ctx.arc(0, 0, 60, 0, Math.PI * 2, true)
+  ctx.clip()
+  // 这个圆弧路径将会变为裁剪路径
+  // 路径填充外将会被裁剪
+  ```
+
+  - **裁剪路径也属于 canvas 状态中的一部分,可以被 save()方法保存起来**
+
 ## 基本动画
 
 ### 动画的基本步骤
@@ -440,4 +477,192 @@ canvas 动画每一帧的步骤都如下
     requestAnimationFrame(draw)
 ```
 
-createImageData / putImageDate
+## 像素操作
+
+### ImageData 对象
+
+ImageData 接口描述 <canvas> 元素的一个隐含像素数据的区域
+
+- 对象中包含几个只读属性
+  width 和 height 对象区域宽高单位像素
+  data Uint8ClampedArray 类型的一维数组，包含着 RGBA 格式的整型数据，范围在 0 至 255 之间(包括 255)
+
+  - data 属性返回一个 Uint8ClampedArray，它可以被使用作为查看初始像素数据。每个像素用 4 个 1bytes 值 (按照红，绿，蓝和透明值的顺序; 这就是"RGBA"格式) 来代表。每个颜色值部份用 0 至 255 来代表。每个部份被分配到一个在数组内连续的索引，左上角像素的红色部份在数组的索引 0 位置。像素从左到右被处理，然后往下，遍历整个数组。
+    Uint8ClampedArray 包含 height × width × 4 字节数据，索引值从 0 到 (height× width × 4)-1
+    ```javascript
+    // 根据行、列读取某像素点的 R/G/B/A 值的公式：
+    imageData.data[50 * (imageData.width * 4) + 200 * 4 + 0 / 1 / 2 / 3]
+    // 读取图片中位于第 50 行，第 200 列的像素的蓝色部份
+    blueComponent = imageData.data[50 * (imageData.width * 4) + 200 * 4 + 2]
+    ```
+
+#### 创建 ImageData 对象
+
+- 通过 context.createImageData(width,height) 创建一个新的、空白的、指定大小的 ImageData 对象。所有的像素在新对象中都是透明黑(rgba(0,0,0,0))的
+- 也可以通过传入另一个 imageData 对象(createImageData(anotherImageData)),来创建一个相同大小的全透明黑的 imageData 对象(不是复制了另一个对象的数据)
+
+#### 获取 ImageData 对象
+
+- 通过 context.getImageData(x,y,width,height)获取现有画布中指定区域的 imageData 对象(其参数含义和 fillRect()方法一致)
+- putImageData()
+
+```javascript
+// 颜色选择器
+// 在这个例子里面，我们会使用 getImageData() 去展示鼠标光标下的颜色。为此，我们要当前鼠标的位置，记为 layerX 和 layerY，然后我们去查询 getImageData() 给我们提供的在那个位置的像数数组里面的像素数据。最后我们使用数组数据去设置背景颜色和 <div> 的文字去展示颜色值。
+
+var img = new Image()
+img.crossOrigin = 'anonymous'
+img.src = './assets/rhino.jpg'
+var canvas = document.getElementById('canvas')
+var ctx = canvas.getContext('2d')
+img.onload = function () {
+  ctx.drawImage(img, 0, 0)
+  img.style.display = 'none'
+}
+var hoveredColor = document.getElementById('hovered-color')
+var selectedColor = document.getElementById('selected-color')
+
+function pick(event, destination) {
+  var x = event.layerX
+  var y = event.layerY
+  var pixel = ctx.getImageData(x, y, 1, 1)
+  var data = pixel.data
+
+  const rgba = `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${data[3] / 255})`
+  destination.style.background = rgba
+  destination.textContent = rgba
+
+  return rgba
+}
+
+canvas.addEventListener('mousemove', function (event) {
+  pick(event, hoveredColor)
+})
+canvas.addEventListener('click', function (event) {
+  pick(event, selectedColor)
+})
+```
+
+#### 在场景中写入像素数据
+
+- 使用 ctx.putImageData(imagedata, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight)将数据从已有的 image 对象绘制到图像
+
+  - 参数 imageData 包含像素值的数组对象
+    dx 源图像数据在目标画布中的位置偏移量（x 轴方向的偏移量）。
+    dy 源图像数据在目标画布中的位置偏移量（y 轴方向的偏移量）。
+    dirtyX (可选)在源图像数据中，矩形区域左上角的位置。默认是整个图像数据的左上角（x 坐标）。
+    dirtyY (可选)在源图像数据中，矩形区域左上角的位置。默认是整个图像数据的左上角（y 坐标）。
+    dirtyWidth (可选)在源图像数据中，矩形区域的宽度。默认是图像数据的宽度。
+    dirtyHeight (可选)在源图像数据中，矩形区域的高度。默认是图像数据的高度。
+
+    ```javascript
+    // 图片灰度和反相颜色
+    // 在这个例子里，我们遍历所有像素以改变他们的数值。然后我们将被修改的像素数组通过putImageData() 放回到画布中去。invert 函数仅仅是去减掉颜色的最大色值 255。grayscale 函数仅仅是用红绿和蓝的平均值。你也可以用加权平均，例如 x = 0.299r + 0.587g + 0.114b 这个公式
+    var img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = './assets/rhino.jpg'
+
+    var canvas = document.getElementById('canvas')
+    var ctx = canvas.getContext('2d')
+
+    img.onload = function () {
+      ctx.drawImage(img, 0, 0)
+    }
+
+    var original = function () {
+      ctx.drawImage(img, 0, 0)
+    }
+
+    var invert = function () {
+      ctx.drawImage(img, 0, 0)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      for (var i = 0; i < data.length; i += 4) {
+        data[i] = 255 - data[i] // red
+        data[i + 1] = 255 - data[i + 1] // green
+        data[i + 2] = 255 - data[i + 2] // blue
+      }
+      ctx.putImageData(imageData, 0, 0)
+    }
+
+    var grayscale = function () {
+      ctx.drawImage(img, 0, 0)
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = imageData.data
+      for (var i = 0; i < data.length; i += 4) {
+        var avg = (data[i] + data[i + 1] + data[i + 2]) / 3
+        data[i] = avg // red
+        data[i + 1] = avg // green
+        data[i + 2] = avg // blue
+      }
+      ctx.putImageData(imageData, 0, 0)
+    }
+
+    const inputs = document.querySelectorAll('[name=color]')
+    for (const input of inputs) {
+      input.addEventListener('change', function (evt) {
+        switch (evt.target.value) {
+          case 'inverted':
+            return invert()
+          case 'grayscale':
+            return grayscale()
+          default:
+            return original()
+        }
+      })
+    }
+
+    // 缩放和反锯齿
+    // 在drawImage() 方法，第二个画布和imageSmoothingEnabled 属性的帮助下，我们可以放大显示我们的图片及看到详情内容。
+
+    // 我们得到鼠标的位置并裁剪出距左和上 5 像素，距右和下 5 像素的图片。然后我们将这幅图复制到另一个画布然后将图片调整到我们想要的大小。在缩放画布里，我们将 10×10 像素的对原画布的裁剪调整为 200×200。
+
+    zoomctx.drawImage(canvas, Math.abs(x - 5), Math.abs(y - 5), 10, 10, 0, 0, 200, 200)
+
+    // 因为反锯齿默认是启用的，我们可能想要关闭它以看到清楚的像素。你可以通过切换勾选框来看到 imageSmoothingEnabled 属性的效果（不同浏览器需要不同前缀）
+
+    var img = new Image()
+    img.src = 'rhino.jpg'
+    img.onload = function () {
+      draw(this)
+    }
+
+    function draw(img) {
+      var canvas = document.getElementById('canvas')
+      var ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      img.style.display = 'none'
+      var zoomctx = document.getElementById('zoom').getContext('2d')
+
+      var smoothbtn = document.getElementById('smoothbtn')
+      var toggleSmoothing = function (event) {
+        zoomctx.imageSmoothingEnabled = this.checked
+        zoomctx.mozImageSmoothingEnabled = this.checked
+        zoomctx.webkitImageSmoothingEnabled = this.checked
+        zoomctx.msImageSmoothingEnabled = this.checked
+      }
+      smoothbtn.addEventListener('change', toggleSmoothing)
+
+      var zoom = function (event) {
+        var x = event.layerX
+        var y = event.layerY
+        zoomctx.drawImage(canvas, Math.abs(x - 5), Math.abs(y - 5), 10, 10, 0, 0, 200, 200)
+      }
+
+      canvas.addEventListener('mousemove', zoom)
+    }
+    ```
+
+    #### 保存图片
+
+    canvas 提供一个 toDataURL()方法,用于保存图片,其返回一个包含被类型参数规定的图像表现格式的数据链接。返回的图片分辨率是 96 dpi
+
+    - canvas.toDataURL('image/png') 默认设定。创建一个 PNG 图片
+    - canvas.toDataURL('image/jpeg', quality) 创建一个 JPG 图片。你可以有选择地提供从 0 到 1 的品质量，1 表示最好品质，0 基本不被辨析但有比较小的文件大小
+      当你从画布中生成了一个数据链接，例如，你可以将它用于任何<image>元素，或者将它放在一个有 download 属性的超链接里用于保存到本地
+
+    ```javascript
+    // <a href="" download>下载图像</a>
+    // a标签的download属性可以可以使用或不使用属性值,其属性值用于决定下载的文件名,如果没有属性值浏览器会从多个来源决定文件名和扩展名
+    a.href = canvas.toDataURL('image/png')
+    ```
